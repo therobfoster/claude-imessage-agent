@@ -71,7 +71,7 @@ except ImportError:
 
 # Configuration
 MESSAGES_DB = Path.home() / "Library/Messages/chat.db"
-AGENT_DIR = Path.home() / "Code" / "Agent"
+AGENT_DIR = Path(__file__).parent.resolve()  # Directory where agent.py is located
 MEMORY_DIR = AGENT_DIR / "memory"
 TASKS_DIR = AGENT_DIR / "tasks"
 LOGS_DIR = AGENT_DIR / "logs"

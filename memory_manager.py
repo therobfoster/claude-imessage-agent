@@ -27,7 +27,7 @@ EMBEDDING_MODEL = "models/text-embedding-004"
 COLLECTION_NAME = "agent_memory"
 
 # Paths
-AGENT_DIR = Path.home() / "Code" / "Agent"
+AGENT_DIR = Path(__file__).parent.resolve()  # Directory where this file is located
 MEMORY_DIR = AGENT_DIR / "memory"
 CHROMA_DIR = MEMORY_DIR / "chroma"
 SECRETS_FILE = AGENT_DIR / "config" / "secrets.json"

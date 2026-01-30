@@ -29,7 +29,7 @@ MIN_CHUNK_RATIO = 0.15        # Minimum 15%
 SAFETY_MARGIN = 1.2           # 20% buffer for token estimation
 
 # Paths
-AGENT_DIR = Path.home() / "Code" / "Agent"
+AGENT_DIR = Path(__file__).parent.resolve()  # Directory where this file is located
 MEMORY_DIR = AGENT_DIR / "memory"
 CONVERSATION_LOG = MEMORY_DIR / "conversation_log.jsonl"
 COMPACTION_LOG = MEMORY_DIR / "compaction_log.jsonl"

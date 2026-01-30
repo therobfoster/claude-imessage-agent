@@ -22,7 +22,7 @@ SOFT_BUFFER = 5_000           # Buffer before soft threshold
 FLUSH_THRESHOLD = CONTEXT_WINDOW - RESERVE_TOKENS - SOFT_BUFFER  # ~85k
 
 # Paths
-AGENT_DIR = Path.home() / "Code" / "Agent"
+AGENT_DIR = Path(__file__).parent.resolve()  # Directory where this file is located
 MEMORY_DIR = AGENT_DIR / "memory"
 MEMORY_FILE = MEMORY_DIR / "MEMORY.md"
 
