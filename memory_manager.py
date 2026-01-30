@@ -343,16 +343,16 @@ class MemoryManager:
         logger.info(f"Backfill complete: {total_chunks} chunks indexed")
         return total_chunks
 
-    def search(self, query: str, top_k: int = 5) -> list[SearchResult]:
+    def search_vector(self, query: str, top_k: int = 10) -> list[SearchResult]:
         """
-        Search for relevant memory chunks.
+        Search using vector similarity (semantic search).
 
         Args:
             query: Search query text.
             top_k: Number of results to return.
 
         Returns:
-            List of SearchResult objects.
+            List of SearchResult objects sorted by score.
         """
         if self._collection.count() == 0:
             return []
@@ -383,6 +383,138 @@ class MemoryManager:
                 ))
 
         return search_results
+
+    def search_keyword(self, query: str, top_k: int = 10) -> list[SearchResult]:
+        """
+        Search using keyword matching (substring search).
+
+        Args:
+            query: Search query text.
+            top_k: Number of results to return.
+
+        Returns:
+            List of SearchResult objects sorted by score.
+        """
+        if self._collection.count() == 0:
+            return []
+
+        # Get all documents for keyword search
+        all_docs = self._collection.get(
+            include=["documents", "metadatas"]
+        )
+
+        if not all_docs["documents"]:
+            return []
+
+        # Score documents by keyword match
+        query_lower = query.lower()
+        query_terms = query_lower.split()
+        scored_results = []
+
+        for i, doc in enumerate(all_docs["documents"]):
+            doc_lower = doc.lower()
+
+            # Calculate score based on term frequency
+            score = 0.0
+            for term in query_terms:
+                if term in doc_lower:
+                    # Count occurrences, normalize by doc length
+                    count = doc_lower.count(term)
+                    score += count / (len(doc_lower) / 100 + 1)
+
+            if score > 0:
+                metadata = all_docs["metadatas"][i] if all_docs["metadatas"] else {}
+                scored_results.append(SearchResult(
+                    text=doc,
+                    score=min(score, 1.0),  # Cap at 1.0
+                    source=metadata.get("source", "unknown"),
+                    timestamp=metadata.get("timestamp", ""),
+                    metadata=metadata
+                ))
+
+        # Sort by score descending and return top_k
+        scored_results.sort(key=lambda x: x.score, reverse=True)
+        return scored_results[:top_k]
+
+    def search_hybrid(self, query: str, top_k: int = 5,
+                      vector_weight: float = 0.7) -> list[SearchResult]:
+        """
+        Hybrid search combining vector and keyword results.
+
+        Args:
+            query: Search query text.
+            top_k: Number of results to return.
+            vector_weight: Weight for vector results (keyword = 1 - vector_weight).
+
+        Returns:
+            List of SearchResult objects with combined scores.
+        """
+        keyword_weight = 1.0 - vector_weight
+
+        # Get results from both methods (fetch more to allow for merging)
+        vector_results = self.search_vector(query, top_k=top_k * 2)
+        keyword_results = self.search_keyword(query, top_k=top_k * 2)
+
+        # Create score map keyed by document text
+        score_map: dict[str, dict] = {}
+
+        for r in vector_results:
+            key = r.text
+            if key not in score_map:
+                score_map[key] = {
+                    "text": r.text,
+                    "vector_score": 0.0,
+                    "keyword_score": 0.0,
+                    "source": r.source,
+                    "timestamp": r.timestamp,
+                    "metadata": r.metadata
+                }
+            score_map[key]["vector_score"] = r.score
+
+        for r in keyword_results:
+            key = r.text
+            if key not in score_map:
+                score_map[key] = {
+                    "text": r.text,
+                    "vector_score": 0.0,
+                    "keyword_score": 0.0,
+                    "source": r.source,
+                    "timestamp": r.timestamp,
+                    "metadata": r.metadata
+                }
+            score_map[key]["keyword_score"] = r.score
+
+        # Combine scores and create results
+        combined_results = []
+        for data in score_map.values():
+            combined_score = (
+                data["vector_score"] * vector_weight +
+                data["keyword_score"] * keyword_weight
+            )
+            combined_results.append(SearchResult(
+                text=data["text"],
+                score=combined_score,
+                source=data["source"],
+                timestamp=data["timestamp"],
+                metadata=data["metadata"]
+            ))
+
+        # Sort by combined score and return top_k
+        combined_results.sort(key=lambda x: x.score, reverse=True)
+        return combined_results[:top_k]
+
+    def search(self, query: str, top_k: int = 5) -> list[SearchResult]:
+        """
+        Search for relevant memory chunks (uses hybrid search).
+
+        Args:
+            query: Search query text.
+            top_k: Number of results to return.
+
+        Returns:
+            List of SearchResult objects.
+        """
+        return self.search_hybrid(query, top_k=top_k)
 
     def get_stats(self) -> dict:
         """Get memory store statistics."""
@@ -433,6 +565,54 @@ def init_memory(api_key: Optional[str] = None, backfill: bool = True) -> MemoryM
             _manager.index_file(context_md, "context")
 
     return _manager
+
+
+def get_relevant_context(query: str, top_k: int = 5) -> str:
+    """
+    Get relevant context for a user message.
+
+    This is the main interface for agent.py to retrieve memory.
+    Falls back gracefully if memory system not initialized.
+
+    Args:
+        query: The user's message to find context for.
+        top_k: Number of results to include.
+
+    Returns:
+        Formatted string of relevant context with source attribution.
+    """
+    global _manager
+
+    if _manager is None:
+        try:
+            _manager = MemoryManager()
+        except Exception as e:
+            logger.warning(f"Could not initialize memory manager: {e}")
+            return ""
+
+    try:
+        results = _manager.search_hybrid(query, top_k=top_k)
+
+        if not results:
+            return ""
+
+        # Format results with source attribution
+        context_parts = []
+        for r in results:
+            source_info = f"[{r.source}"
+            if r.timestamp:
+                # Extract date from ISO timestamp
+                date_part = r.timestamp.split("T")[0] if "T" in r.timestamp else r.timestamp
+                source_info += f" {date_part}"
+            source_info += "]"
+
+            context_parts.append(f"{source_info}\n{r.text}")
+
+        return "\n\n---\n\n".join(context_parts)
+
+    except Exception as e:
+        logger.error(f"Error retrieving context: {e}")
+        return ""
 
 
 if __name__ == "__main__":

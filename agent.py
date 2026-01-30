@@ -47,6 +47,13 @@ try:
 except ImportError:
     TOKEN_COUNTER_AVAILABLE = False
 
+# Memory manager for semantic search
+try:
+    from memory_manager import get_relevant_context, get_manager, init_memory
+    MEMORY_MANAGER_AVAILABLE = True
+except ImportError:
+    MEMORY_MANAGER_AVAILABLE = False
+
 # Configuration
 MESSAGES_DB = Path.home() / "Library/Messages/chat.db"
 AGENT_DIR = Path.home() / "Code" / "Agent"
@@ -960,7 +967,7 @@ def load_context():
 
 
 def save_conversation(sender, user_message, agent_response):
-    """Save conversation to memory."""
+    """Save conversation to memory and index for semantic search."""
     log_file = MEMORY_DIR / "conversation_log.jsonl"
 
     entry = {
@@ -972,6 +979,14 @@ def save_conversation(sender, user_message, agent_response):
 
     with open(log_file, 'a') as f:
         f.write(json.dumps(entry) + '\n')
+
+    # Index into vector store for semantic search
+    if MEMORY_MANAGER_AVAILABLE:
+        try:
+            manager = get_manager()
+            manager.index_conversation(entry)
+        except Exception as e:
+            logger.warning(f"Failed to index conversation: {e}")
 
 
 def get_recent_history(n=5):
@@ -1124,6 +1139,17 @@ def invoke_claude(user_message, sender):
     system_prompt = get_system_prompt()
     tools_prompt = get_tools_prompt()
 
+    # Get conversation history - semantic search if available, else recent history
+    if MEMORY_MANAGER_AVAILABLE:
+        relevant_context = get_relevant_context(user_message, top_k=5)
+        history_section = f"## Relevant Context (semantic search)\n{relevant_context}" if relevant_context else ""
+        # Also include last 2 recent exchanges for immediate continuity
+        recent = get_recent_history(2)
+        if recent and recent != "No previous conversations.":
+            history_section += f"\n\n## Recent Exchanges\n{recent}"
+    else:
+        history_section = f"## Conversation History (last few exchanges)\n{get_recent_history(5)}"
+
     full_prompt = f"""{system_prompt}
 
 {tools_prompt}
@@ -1131,8 +1157,7 @@ def invoke_claude(user_message, sender):
 ## Current Context
 {context}
 
-## Conversation History (last few exchanges)
-{get_recent_history(5)}
+{history_section}
 
 ## Current Time
 {datetime.now().strftime("%Y-%m-%d %H:%M %A")}
