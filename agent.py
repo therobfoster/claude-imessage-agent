@@ -1054,111 +1054,63 @@ Be friendly, helpful, and proactive. If asked to remember something, acknowledge
 If asked about your capabilities, explain you can help with questions, tasks, reminders, building things, and more."""
 
 
-def get_tools_prompt():
-    """Instructions for the agent about available actions."""
-    return """
-## Available Actions
-You can perform these actions by including special tags in your response:
+def get_tools_prompt(message=""):
+    """Instructions for available actions. Lazy-loads based on message content."""
+    msg_lower = message.lower()
 
-### Memory & Reminders
-1. **Remember something**: <REMEMBER>fact to remember</REMEMBER>
-2. **Set a reminder**: <REMINDER due="YYYY-MM-DD HH:MM" recurring="PATTERN">text</REMINDER>
-   - recurring values: "daily", "weekly", "monthly", "weekdays", "weekends"
-3. **Complete a reminder**: <COMPLETE>reminder_id</COMPLETE>
+    # Core tools (always included) - compressed
+    tools = """## Actions (use XML tags in response)
 
-### Building & Commands
-4. **Create a file**: <CREATE_FILE path="filename.txt">file content here</CREATE_FILE>
-   - Files are created in the workspace by default
-5. **Run a command**: <RUN_COMMAND>shell command here</RUN_COMMAND>
-   - Safe commands run immediately; risky ones need user approval
-6. **Build something complex**: <BUILD>detailed description of what to build</BUILD>
-   - Use for multi-file projects, scripts, etc. Always needs approval.
+### Core
+- <REMEMBER>fact</REMEMBER> - Save to memory
+- <REMINDER due="YYYY-MM-DD HH:MM" recurring="daily|weekly|monthly">text</REMINDER>
+- <COMPLETE>id</COMPLETE> - Mark reminder done
+- <RUN_COMMAND>cmd</RUN_COMMAND> - Run shell command
+- <CREATE_FILE path="name.txt">content</CREATE_FILE>"""
 
-### Self-Modification
-7. **Update your own code**: <MODIFY_SELF file="agent.py">description of changes</MODIFY_SELF>
-   - Always requires approval
-   - Can modify agent.py, config files, add new tasks, etc.
-   - Be specific about what to change and why
+    # Build tools - if mentions build, create, script, code, project
+    if any(kw in msg_lower for kw in ['build', 'create', 'script', 'code', 'project', 'make me', 'write a']):
+        tools += """
 
-### Browser Automation
-8. **Browser actions**: <BROWSER action="ACTION">target/content</BROWSER>
-   - Actions available:
-     - `open`: Open a URL → <BROWSER action="open">https://example.com</BROWSER>
-     - `read`: Get page text content → <BROWSER action="read">https://example.com</BROWSER>
-     - `screenshot`: Take screenshot → <BROWSER action="screenshot">https://example.com</BROWSER>
-     - `click`: Click an element → <BROWSER action="click">url|selector</BROWSER>
-     - `type`: Type into a field → <BROWSER action="type">url|selector|text to type</BROWSER>
-   - Screenshots are saved to the workspace folder
-   - Useful for checking websites, grabbing info from JS-rendered pages, filling forms
+### Building
+- <BUILD>description</BUILD> - Multi-file projects (needs approval)
+- <MODIFY_SELF file="agent.py">changes</MODIFY_SELF> - Update own code (needs approval)"""
+
+    # Browser tools - if mentions website, url, browse, screenshot, page
+    if any(kw in msg_lower for kw in ['website', 'url', 'browse', 'screenshot', 'page', 'http', 'www', '.com', '.org']):
+        tools += """
+
+### Browser
+- <BROWSER action="read">url</BROWSER> - Get page text
+- <BROWSER action="screenshot">url</BROWSER> - Take screenshot
+- <BROWSER action="click">url|selector</BROWSER> - Click element
+- <BROWSER action="type">url|selector|text</BROWSER> - Type in field"""
+
+    # Search tools - if mentions search, look up, find, what is, weather, news
+    if any(kw in msg_lower for kw in ['search', 'look up', 'find', 'what is', 'weather', 'news', 'latest', 'current']):
+        tools += """
 
 ### Web Search
-9. **Search the web**: <WEB_SEARCH query="search terms">optional context</WEB_SEARCH>
-   - Searches the web using DuckDuckGo and returns top 5 results
-   - The query attribute contains the search terms
-   - Optional content between tags provides context about why you're searching
-   - Returns titles and snippets from search results
-   - Use for looking up current info, news, documentation, etc.
+- <WEB_SEARCH query="terms">context</WEB_SEARCH> - Search DuckDuckGo"""
 
-### TikTok Search
-10. **Search TikTok**: <TIKTOK_SEARCH query="search terms" max="20">optional context</TIKTOK_SEARCH>
-   - Searches TikTok for specific content using Apify
-   - The query attribute contains search terms (product names, brands, etc.)
-   - Optional max attribute sets number of results (default: 20)
-   - Returns video stats: views, likes, shares, comments, author info
-   - Use for gauging consumer sentiment and product buzz
-   - Great for spotting trending products before they hit mainstream
+    # TikTok tools - if mentions tiktok, trending, viral, social
+    if any(kw in msg_lower for kw in ['tiktok', 'trending', 'viral', 'social media', 'buzz']):
+        tools += """
 
-### TikTok Trends Discovery
-11. **Get TikTok Trends**: <TIKTOK_TRENDS region="US" count="20"></TIKTOK_TRENDS>
-   - Gets currently trending hashtags, videos, creators on TikTok
-   - NO search query needed - discovers what's hot right now
-   - Optional region attribute (default: US) - use country codes like US, GB, DE
-   - Optional count attribute (default: 20) - how many of each type to return
-   - Returns trending hashtags, viral videos, top creators
-   - Use for discovering what products/topics are gaining momentum
+### TikTok
+- <TIKTOK_SEARCH query="terms" max="20">context</TIKTOK_SEARCH> - Search videos
+- <TIKTOK_TRENDS region="US" count="20"></TIKTOK_TRENDS> - Get trends"""
 
-### Image Processing (Gemini AI)
-12. **Analyze an image**: <IMAGE_ANALYZE prompt="description request">optional: which image</IMAGE_ANALYZE>
-   - Uses Gemini AI to analyze/describe images sent by the user
-   - The prompt attribute tells what to analyze (e.g., "describe this", "what's in this photo")
-   - Can work on the most recently sent image or specify which one
-   - Returns detailed AI analysis of the image content
+    # Image tools - if mentions image, photo, picture, edit, generate, analyze
+    if any(kw in msg_lower for kw in ['image', 'photo', 'picture', 'pic', 'edit', 'generate', 'analyze', 'brighter', 'filter', 'blur']):
+        tools += """
 
-13. **Edit/Modify an image**: <IMAGE_EDIT prompt="edit instructions">optional: which image</IMAGE_EDIT>
-   - Uses Gemini AI to understand and modify images
-   - Examples: "make it brighter", "add a vintage filter", "remove background"
-   - Returns the modified image or detailed modification guidance
-   - Works with the user's most recent image by default
+### Images (Gemini)
+- <IMAGE_ANALYZE prompt="describe">which</IMAGE_ANALYZE> - Analyze image
+- <IMAGE_EDIT prompt="make brighter">which</IMAGE_EDIT> - Edit image
+- <IMAGE_GENERATE prompt="description" aspect="1:1"></IMAGE_GENERATE> - Create image"""
 
-14. **Generate an image**: <IMAGE_GENERATE prompt="detailed description" aspect="1:1"></IMAGE_GENERATE>
-   - Uses Imagen to generate a new image from a text description
-   - Be detailed and specific in the prompt for best results
-   - Optional aspect ratio: "1:1" (square), "16:9" (landscape), "9:16" (portrait)
-   - Returns the generated image
-
-### Examples
-- "Create a Python script that..." → Use <BUILD>description</BUILD>
-- "Make a file called notes.txt with..." → Use <CREATE_FILE path="notes.txt">content</CREATE_FILE>
-- "List files in workspace" → Use <RUN_COMMAND>ls -la</RUN_COMMAND>
-- "Remember my server IP is..." → Use <REMEMBER>...</REMEMBER>
-- "Add a new feature to yourself that..." → Use <MODIFY_SELF>description</MODIFY_SELF>
-- "Check what's on the homepage of..." → Use <BROWSER action="read">url</BROWSER>
-- "Take a screenshot of..." → Use <BROWSER action="screenshot">url</BROWSER>
-- "Fill in the search box on..." → Use <BROWSER action="type">url|input[name='q']|search text</BROWSER>
-- "Search for Python tutorials" → Use <WEB_SEARCH query="Python tutorials for beginners">finding learning resources</WEB_SEARCH>
-- "What's the weather in NYC?" → Use <WEB_SEARCH query="weather new york city today"></WEB_SEARCH>
-- "Look up the latest news about..." → Use <WEB_SEARCH query="topic latest news 2024">checking current events</WEB_SEARCH>
-- "What's trending on TikTok about Stanley cups?" → Use <TIKTOK_SEARCH query="Stanley cup tumbler">checking product buzz</TIKTOK_SEARCH>
-- "Are people excited about the new iPhone?" → Use <TIKTOK_SEARCH query="iPhone 16 unboxing review" max="30">gauging consumer sentiment</TIKTOK_SEARCH>
-- "What's hot on TikTok right now?" → Use <TIKTOK_TRENDS region="US" count="20"></TIKTOK_TRENDS>
-- "Show me trending TikTok content in the UK" → Use <TIKTOK_TRENDS region="GB" count="15"></TIKTOK_TRENDS>
-- "What's in this image?" → Use <IMAGE_ANALYZE prompt="Describe what you see in this image"></IMAGE_ANALYZE>
-- "Make this photo brighter" → Use <IMAGE_EDIT prompt="Make this image brighter and more vibrant"></IMAGE_EDIT>
-- "Generate an image of a sunset over mountains" → Use <IMAGE_GENERATE prompt="A beautiful sunset over snow-capped mountains, dramatic orange and purple sky, photorealistic"></IMAGE_GENERATE>
-- "Add a hat to this photo" → Use <IMAGE_EDIT prompt="Add a stylish fedora hat to the subject in this image"></IMAGE_EDIT>
-
-For builds and self-modification, the user will need to approve before it starts.
-"""
+    return tools
 
 
 # ============ Claude Invocation ============
@@ -1167,11 +1119,11 @@ def invoke_claude(user_message, sender):
     """Call Claude Code CLI with the user's message."""
     context = load_context()
     system_prompt = get_system_prompt()
-    tools_prompt = get_tools_prompt()
+    tools_prompt = get_tools_prompt(user_message)  # Lazy-load based on message
 
     # Get conversation history - semantic search if available, else recent history
     if MEMORY_MANAGER_AVAILABLE:
-        relevant_context = get_relevant_context(user_message, top_k=5)
+        relevant_context = get_relevant_context(user_message, top_k=3)  # Reduced for efficiency
         history_section = f"## Relevant Context (semantic search)\n{relevant_context}" if relevant_context else ""
         # Also include last 2 recent exchanges for immediate continuity
         recent = get_recent_history(2)
