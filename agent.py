@@ -79,17 +79,43 @@ WORKSPACE_DIR = AGENT_DIR / "workspace"
 STATE_FILE = AGENT_DIR / ".agent_state.json"
 PENDING_FILE = AGENT_DIR / ".pending_actions.json"
 
-# Your contact info (messages FROM this address will be processed)
-ALLOWED_SENDERS = ["therobfoster@gmail.com", "+18017210669"]
+# Load user configuration
+USER_CONFIG_FILE = AGENT_DIR / "config" / "user_config.json"
 
-# Polling interval in seconds
-POLL_INTERVAL = 10
+def load_user_config():
+    """Load user configuration from file, with defaults."""
+    defaults = {
+        "allowed_senders": [],
+        "poll_interval": 10,
+        "permissions": {
+            "auto_approve_commands": False,
+            "auto_approve_builds": False,
+            "auto_approve_self_modify": False,
+            "auto_approve_file_writes": False,
+            "safe_commands": ["ls", "cat", "head", "tail", "grep", "find", "pwd", "whoami",
+                              "date", "cal", "echo", "which", "file", "wc", "du", "df"]
+        }
+    }
+    if USER_CONFIG_FILE.exists():
+        try:
+            with open(USER_CONFIG_FILE) as f:
+                user_config = json.load(f)
+                # Merge with defaults
+                for key, value in user_config.items():
+                    if key == "permissions" and isinstance(value, dict):
+                        defaults["permissions"].update(value)
+                    else:
+                        defaults[key] = value
+        except Exception as e:
+            logger.warning(f"Failed to load user config: {e}")
+    return defaults
 
-# Safe commands that don't need approval (read-only operations)
-SAFE_COMMANDS = [
-    "ls", "cat", "head", "tail", "grep", "find", "pwd", "whoami",
-    "date", "cal", "echo", "which", "file", "wc", "du", "df"
-]
+# Load config at startup
+_user_config = load_user_config()
+ALLOWED_SENDERS = _user_config["allowed_senders"]
+POLL_INTERVAL = _user_config["poll_interval"]
+PERMISSIONS = _user_config["permissions"]
+SAFE_COMMANDS = PERMISSIONS.get("safe_commands", [])
 
 # Dangerous patterns that ALWAYS need approval
 DANGEROUS_PATTERNS = [
@@ -425,7 +451,9 @@ def is_safe_file_path(path):
 
 def execute_command(command, needs_approval=True):
     """Execute a shell command, potentially with approval."""
-    if needs_approval and not is_safe_command(command):
+    # Check if auto-approve is enabled or command is safe
+    auto_approve = PERMISSIONS.get("auto_approve_commands", False)
+    if needs_approval and not auto_approve and not is_safe_command(command):
         action = add_pending_action("command", command, f"Run command: {command[:50]}...")
         return None, f"⚠️ This command needs your approval:\n\n`{command}`\n\nReply 'yes' or 'approve' to run it, or 'no' to cancel."
 
@@ -454,7 +482,8 @@ def execute_file_write(path, content, needs_approval=True):
     else:
         full_path = Path(path)
 
-    if needs_approval and not is_safe_file_path(full_path):
+    auto_approve = PERMISSIONS.get("auto_approve_file_writes", False)
+    if needs_approval and not auto_approve and not is_safe_file_path(full_path):
         action = add_pending_action("file_write", {"path": str(full_path), "content": content},
                                     f"Create file: {path}")
         return None, f"⚠️ Creating files outside workspace needs approval:\n\nFile: `{path}`\n\nReply 'yes' to create it, or 'no' to cancel."
@@ -467,15 +496,23 @@ def execute_file_write(path, content, needs_approval=True):
         return None, f"Error: {str(e)}"
 
 
-def execute_build_task(task_description):
+def execute_build_task(task_description, sender=None):
     """Run Claude Code to build something complex."""
+    # Check if auto-approve is enabled
+    if PERMISSIONS.get("auto_approve_builds", False):
+        return run_approved_build(task_description, sender)
+
     # Add to pending for approval
     action = add_pending_action("build", task_description, f"Build task: {task_description[:50]}...")
     return None, f"🔨 Build task queued:\n\n{task_description}\n\nReply 'yes' or 'approve' to start building, or 'no' to cancel."
 
 
-def execute_self_modify(description):
+def execute_self_modify(description, sender=None):
     """Queue a self-modification task."""
+    # Check if auto-approve is enabled
+    if PERMISSIONS.get("auto_approve_self_modify", False):
+        return run_approved_self_modify(description, sender)
+
     action = add_pending_action("self_modify", description, f"Self-modify: {description[:50]}...")
     return None, f"🔧 Self-modification queued:\n\n{description}\n\n⚠️ This will modify my own code. Reply 'yes' to proceed, or 'no' to cancel."
 
@@ -1311,10 +1348,12 @@ def process_actions(response, sender):
     build_pattern = r'<BUILD>(.*?)</BUILD>'
     for match in re.finditer(build_pattern, response, re.DOTALL):
         task = match.group(1).strip()
-        result, error = execute_build_task(task)
+        result, error = execute_build_task(task, sender)
         if error:
             additional_messages.append(error)
-        logger.info(f"Queued build: {task[:50]}...")
+        elif result:
+            additional_messages.append(result)
+        logger.info(f"Build task: {task[:50]}...")
     cleaned = re.sub(build_pattern, '', cleaned, flags=re.DOTALL)
 
     # Process MODIFY_SELF tags
@@ -1323,10 +1362,12 @@ def process_actions(response, sender):
         target_file = match.group(1) or "agent.py"
         description = match.group(2).strip()
         full_description = f"[Target: {target_file}] {description}"
-        result, error = execute_self_modify(full_description)
+        result, error = execute_self_modify(full_description, sender)
         if error:
             additional_messages.append(error)
-        logger.info(f"Queued self-modification: {description[:50]}...")
+        elif result:
+            additional_messages.append(result)
+        logger.info(f"Self-modification: {description[:50]}...")
     cleaned = re.sub(modify_pattern, '', cleaned, flags=re.DOTALL)
 
     # Process BROWSER tags

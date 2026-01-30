@@ -32,8 +32,9 @@ memory/vectors.db
 memory/chroma/
 memory/.content_hashes.json
 
-# Secrets
+# Secrets and user config
 config/secrets.json
+config/user_config.json
 *.key
 *credentials*
 *secret*

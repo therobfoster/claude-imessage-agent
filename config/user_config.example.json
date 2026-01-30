@@ -1,0 +1,17 @@
+{
+  "allowed_senders": [
+    "+1234567890",
+    "your.email@icloud.com"
+  ],
+  "permissions": {
+    "auto_approve_commands": false,
+    "auto_approve_builds": false,
+    "auto_approve_self_modify": false,
+    "auto_approve_file_writes": false,
+    "safe_commands": [
+      "ls", "pwd", "date", "whoami", "echo",
+      "cat", "head", "tail", "wc", "grep"
+    ]
+  },
+  "poll_interval": 10
+}
