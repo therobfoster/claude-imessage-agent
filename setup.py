@@ -50,8 +50,30 @@ def setup_agent_name():
     return name
 
 
+def check_claude_cli():
+    print_step(2, "Checking Claude Code CLI...")
+
+    result = subprocess.run(["which", "claude"], capture_output=True, text=True)
+    if result.returncode == 0:
+        print(f"  ✓ Claude CLI found: {result.stdout.strip()}")
+        return True
+    else:
+        print("  ✗ Claude Code CLI not found!")
+        print("")
+        print("  The agent requires Claude Code CLI to generate responses.")
+        print("  Install it with:")
+        print("")
+        print("    npm install -g @anthropic-ai/claude-code")
+        print("")
+        print("  Then run 'claude' once to authenticate.")
+        print("")
+        if not ask_yes_no("  Continue setup anyway?", default=False):
+            sys.exit(1)
+        return False
+
+
 def install_dependencies():
-    print_step(2, "Installing Python dependencies...")
+    print_step(3, "Installing Python dependencies...")
 
     requirements = AGENT_DIR / "requirements.txt"
     if not requirements.exists():
@@ -77,7 +99,7 @@ google-generativeai>=0.3.0   # Gemini embeddings
         return False
 
 def setup_api_keys():
-    print_step(3, "API Keys Configuration")
+    print_step(4, "API Keys Configuration")
 
     secrets_file = CONFIG_DIR / "secrets.json"
     existing = {}
@@ -111,7 +133,7 @@ def setup_api_keys():
     return existing
 
 def setup_allowed_senders():
-    print_step(4, "Allowed Senders Configuration")
+    print_step(5, "Allowed Senders Configuration")
 
     print("\n  The agent will ONLY respond to messages from these contacts.")
     print("  Use phone numbers (+1234567890) or iCloud emails.")
@@ -148,7 +170,7 @@ def setup_allowed_senders():
     return existing
 
 def setup_permissions(config):
-    print_step(5, "Permissions Configuration")
+    print_step(6, "Permissions Configuration")
 
     print("\n  Configure what the agent can do automatically vs. with approval.")
 
@@ -180,7 +202,7 @@ def setup_permissions(config):
     return config
 
 def setup_poll_interval(config):
-    print_step(6, "Poll Interval")
+    print_step(7, "Poll Interval")
 
     current = config.get("poll_interval", 10)
     print(f"\n  How often to check for new messages (in seconds).")
@@ -201,7 +223,7 @@ def save_config(config):
     print(f"\n  ✓ Configuration saved to {config_file}")
 
 def create_directories():
-    print_step(7, "Creating directories...")
+    print_step(8, "Creating directories...")
 
     dirs = [
         AGENT_DIR / "memory",
@@ -250,24 +272,27 @@ def main():
         # Step 1: Agent name
         agent_name = setup_agent_name()
 
-        # Step 2: Install dependencies
+        # Step 2: Check Claude CLI
+        check_claude_cli()
+
+        # Step 3: Install dependencies
         if not install_dependencies():
             print("\n  ⚠️  Dependency installation failed. Please install manually:")
             print("     pip3 install tiktoken chromadb google-generativeai")
 
-        # Step 3: API Keys
+        # Step 4: API Keys
         setup_api_keys()
 
-        # Step 4: Allowed senders
+        # Step 5: Allowed senders
         config = setup_allowed_senders()
 
         # Save agent name to config
         config["agent_name"] = agent_name
 
-        # Step 5: Permissions
+        # Step 6: Permissions
         config = setup_permissions(config)
 
-        # Step 6: Poll interval
+        # Step 7: Poll interval
         config = setup_poll_interval(config)
 
         # Save config

@@ -19,6 +19,8 @@ A personal AI assistant that responds to your iMessages using Claude. Features s
 
 - macOS (for iMessage access)
 - Python 3.9+
+- Node.js (for Claude Code CLI)
+- Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)
 - Full Disk Access permission (to read iMessage database)
 - Gemini API key (free at https://makersuite.google.com/app/apikey)
 
@@ -40,20 +42,36 @@ git clone https://github.com/therobfoster/claude-imessage-agent.git
 cd claude-imessage-agent
 ```
 
-### 2. Run the setup script
+### 2. Install Claude Code CLI
+
+The agent uses Claude Code to generate responses:
+
+```bash
+# Install Node.js if not already installed
+brew install node
+
+# Install Claude Code CLI
+npm install -g @anthropic-ai/claude-code
+
+# Authenticate (opens browser)
+claude
+```
+
+### 3. Run the setup script
 
 ```bash
 python3 setup.py
 ```
 
 This will:
+- Ask for your agent's name
 - Install Python dependencies (tiktoken, chromadb, google-generativeai)
 - Ask for your Gemini API key
 - Configure allowed senders (phone numbers/emails that can message the agent)
 - Set permission levels (what needs approval vs. auto-approve)
 - Create necessary directories
 
-### 3. Grant Full Disk Access
+### 4. Grant Full Disk Access
 
 The agent needs to read `~/Library/Messages/chat.db`:
 
@@ -62,7 +80,7 @@ The agent needs to read `~/Library/Messages/chat.db`:
 3. Add **Terminal** (or your terminal app: iTerm, VS Code, etc.)
 4. Restart your terminal
 
-### 4. Start the agent
+### 5. Start the agent
 
 ```bash
 python3 agent.py
