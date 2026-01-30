@@ -1109,8 +1109,10 @@ def get_tools_prompt(message=""):
 - <RUN_COMMAND>cmd</RUN_COMMAND> - Run shell command
 - <CREATE_FILE path="name.txt">content</CREATE_FILE>"""
 
-    # Build tools - if mentions build, create, script, code, project
-    if any(kw in msg_lower for kw in ['build', 'create', 'script', 'code', 'project', 'make me', 'write a']):
+    # Build tools - if mentions build, create, script, code, project, or self-modification
+    if any(kw in msg_lower for kw in ['build', 'create', 'script', 'code', 'project', 'make me', 'write a',
+                                       'modify', 'update yourself', 'change yourself', 'add feature',
+                                       'improve yourself', 'upgrade yourself', 'yourself to']):
         tools += """
 
 ### Building
