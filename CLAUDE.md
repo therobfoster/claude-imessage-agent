@@ -8,7 +8,8 @@ We're adding RAG (vector search) and auto-compaction to prevent context rot. See
 
 ### Feature Chunks (in order)
 1. **Token Counting** ✓ DONE (branch: `feat/token-counting`)
-2. **Vector Storage** ← NEXT (ChromaDB + Gemini embeddings)
+2. **Vector Storage** ✓ DONE (branch: `feat/vector-storage`)
+3. **Hybrid Search** ← NEXT (replace `get_recent_history(5)`)
 3. Hybrid Search (replace `get_recent_history(5)`)
 4. Memory Flush (pre-compaction save)
 5. Auto-Compaction (smart summarization)
@@ -33,3 +34,4 @@ We're adding RAG (vector search) and auto-compaction to prevent context rot. See
 ## Git State
 - `main`: Initial commit + CLAUDE.md
 - `feat/token-counting`: Feature 1 complete (token counting)
+- `feat/vector-storage`: Feature 2 complete (ChromaDB + embeddings)
