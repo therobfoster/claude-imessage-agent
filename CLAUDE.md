@@ -7,18 +7,18 @@ iMessage Agent that polls `~/Library/Messages/chat.db`, processes messages with 
 We're adding RAG (vector search) and auto-compaction to prevent context rot. See `specs/memory-integration.spec.md` for full details.
 
 ### Feature Chunks (in order)
-1. **Token Counting** ← CURRENT (branch: `feat/token-counting`)
-2. Vector Storage (ChromaDB + Gemini embeddings)
+1. **Token Counting** ✓ DONE (branch: `feat/token-counting`)
+2. **Vector Storage** ← NEXT (ChromaDB + Gemini embeddings)
 3. Hybrid Search (replace `get_recent_history(5)`)
 4. Memory Flush (pre-compaction save)
 5. Auto-Compaction (smart summarization)
 6. Integration & Polish
 
-### Feature 1 Deliverables
-- [ ] Create `requirements.txt` with tiktoken
-- [ ] Create `token_counter.py` with `estimate_tokens()` and `check_limit()`
-- [ ] Modify `agent.py` `invoke_claude()` to log token counts
-- [ ] Add warning at 80% context window (80k tokens)
+### Feature 1 Deliverables ✓ COMPLETE
+- [x] Create `requirements.txt` with tiktoken
+- [x] Create `token_counter.py` with `estimate_tokens()` and `check_limit()`
+- [x] Modify `agent.py` `invoke_claude()` to log token counts
+- [x] Add warning at 80% context window (80k tokens)
 
 ## Key Files
 - `agent.py` - Main agent (1,630 lines)
@@ -31,5 +31,5 @@ We're adding RAG (vector search) and auto-compaction to prevent context rot. See
 - Planning doc: `~/Code/MEMORY_INTEGRATION.md`
 
 ## Git State
-- Initial commit done on `main`
-- Next: create `feat/token-counting` branch
+- `main`: Initial commit + CLAUDE.md
+- `feat/token-counting`: Feature 1 complete (token counting)
