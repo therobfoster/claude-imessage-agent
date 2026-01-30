@@ -26,9 +26,18 @@ A personal AI assistant that responds to your iMessages using Claude. Features s
 
 ### 1. Clone the repository
 
+Clone with your preferred agent name as the directory:
+
 ```bash
-git clone <repo-url> ~/Code/Agent
-cd ~/Code/Agent
+# Example: name it "jarvis", "friday", "max", etc.
+git clone https://github.com/therobfoster/claude-imessage-agent.git jarvis
+cd jarvis
+```
+
+Or use the default name:
+```bash
+git clone https://github.com/therobfoster/claude-imessage-agent.git
+cd claude-imessage-agent
 ```
 
 ### 2. Run the setup script
@@ -102,6 +111,7 @@ The agent uses XML tags internally. You don't need to use these directly:
 
 ```json
 {
+  "agent_name": "Jarvis",
   "allowed_senders": ["+1234567890", "you@icloud.com"],
   "poll_interval": 10,
   "permissions": {

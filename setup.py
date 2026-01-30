@@ -35,8 +35,23 @@ def ask_yes_no(prompt, default=True):
         return default
     return result in ('y', 'yes')
 
+def setup_agent_name():
+    print_step(1, "Agent Name")
+
+    print("\n  Give your agent a name. This will be used in logs and responses.")
+    print("  Examples: Jarvis, Friday, Max, Assistant")
+
+    # Get current directory name as default
+    default_name = AGENT_DIR.name.replace("-", " ").replace("_", " ").title()
+    if default_name.lower() == "claude imessage agent":
+        default_name = "Claude"
+
+    name = ask("\n  Agent name", default=default_name)
+    return name
+
+
 def install_dependencies():
-    print_step(1, "Installing Python dependencies...")
+    print_step(2, "Installing Python dependencies...")
 
     requirements = AGENT_DIR / "requirements.txt"
     if not requirements.exists():
@@ -62,7 +77,7 @@ google-generativeai>=0.3.0   # Gemini embeddings
         return False
 
 def setup_api_keys():
-    print_step(2, "API Keys Configuration")
+    print_step(3, "API Keys Configuration")
 
     secrets_file = CONFIG_DIR / "secrets.json"
     existing = {}
@@ -96,7 +111,7 @@ def setup_api_keys():
     return existing
 
 def setup_allowed_senders():
-    print_step(3, "Allowed Senders Configuration")
+    print_step(4, "Allowed Senders Configuration")
 
     print("\n  The agent will ONLY respond to messages from these contacts.")
     print("  Use phone numbers (+1234567890) or iCloud emails.")
@@ -133,7 +148,7 @@ def setup_allowed_senders():
     return existing
 
 def setup_permissions(config):
-    print_step(4, "Permissions Configuration")
+    print_step(5, "Permissions Configuration")
 
     print("\n  Configure what the agent can do automatically vs. with approval.")
 
@@ -165,7 +180,7 @@ def setup_permissions(config):
     return config
 
 def setup_poll_interval(config):
-    print_step(5, "Poll Interval")
+    print_step(6, "Poll Interval")
 
     current = config.get("poll_interval", 10)
     print(f"\n  How often to check for new messages (in seconds).")
@@ -186,7 +201,7 @@ def save_config(config):
     print(f"\n  ✓ Configuration saved to {config_file}")
 
 def create_directories():
-    print_step(6, "Creating directories...")
+    print_step(7, "Creating directories...")
 
     dirs = [
         AGENT_DIR / "memory",
@@ -232,21 +247,27 @@ def main():
     print("  Press Ctrl+C at any time to cancel.\n")
 
     try:
-        # Step 1: Install dependencies
+        # Step 1: Agent name
+        agent_name = setup_agent_name()
+
+        # Step 2: Install dependencies
         if not install_dependencies():
             print("\n  ⚠️  Dependency installation failed. Please install manually:")
             print("     pip3 install tiktoken chromadb google-generativeai")
 
-        # Step 2: API Keys
+        # Step 3: API Keys
         setup_api_keys()
 
-        # Step 3: Allowed senders
+        # Step 4: Allowed senders
         config = setup_allowed_senders()
 
-        # Step 4: Permissions
+        # Save agent name to config
+        config["agent_name"] = agent_name
+
+        # Step 5: Permissions
         config = setup_permissions(config)
 
-        # Step 5: Poll interval
+        # Step 6: Poll interval
         config = setup_poll_interval(config)
 
         # Save config

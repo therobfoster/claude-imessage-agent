@@ -1,4 +1,5 @@
 {
+  "agent_name": "Claude",
   "allowed_senders": [
     "+1234567890",
     "your.email@icloud.com"

@@ -1734,8 +1734,9 @@ def run_agent():
 
     state = load_state()
 
+    agent_name = _user_config.get("agent_name", "Claude")
     logger.info("=" * 50)
-    logger.info("Claude iMessage Agent starting...")
+    logger.info(f"{agent_name} iMessage Agent starting...")
     logger.info(f"Monitoring for messages from: {ALLOWED_SENDERS}")
     logger.info(f"Poll interval: {POLL_INTERVAL} seconds")
     logger.info(f"Workspace: {WORKSPACE_DIR}")
