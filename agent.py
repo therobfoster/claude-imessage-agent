@@ -1110,14 +1110,24 @@ def get_tools_prompt(message=""):
 - <CREATE_FILE path="name.txt">content</CREATE_FILE>"""
 
     # Build tools - if mentions build, create, script, code, project, or self-modification
-    if any(kw in msg_lower for kw in ['build', 'create', 'script', 'code', 'project', 'make me', 'write a',
-                                       'modify', 'update yourself', 'change yourself', 'add feature',
-                                       'improve yourself', 'upgrade yourself', 'yourself to']):
+    build_keywords = ['build', 'create', 'script', 'code', 'project', 'make me', 'write a',
+                      'modify', 'update yourself', 'change yourself', 'add feature',
+                      'improve yourself', 'upgrade yourself', 'yourself to']
+    if any(kw in msg_lower for kw in build_keywords):
         tools += """
 
 ### Building
 - <BUILD>description</BUILD> - Multi-file projects (needs approval)
 - <MODIFY_SELF file="agent.py">changes</MODIFY_SELF> - Update own code (needs approval)"""
+
+        # Load features manifest for self-modification context
+        features_file = AGENT_DIR / "config" / "FEATURES.md"
+        if features_file.exists():
+            features_content = features_file.read_text()
+            tools += f"""
+
+## Current Agent Features (consult before modifying)
+{features_content}"""
 
     # Browser tools - if mentions website, url, browse, screenshot, page
     if any(kw in msg_lower for kw in ['website', 'url', 'browse', 'screenshot', 'page', 'http', 'www', '.com', '.org']):
