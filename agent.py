@@ -54,6 +54,13 @@ try:
 except ImportError:
     MEMORY_MANAGER_AVAILABLE = False
 
+# Memory flush for pre-compaction save
+try:
+    from memory_flush import should_flush, run_memory_flush, mark_flushed
+    MEMORY_FLUSH_AVAILABLE = True
+except ImportError:
+    MEMORY_FLUSH_AVAILABLE = False
+
 # Configuration
 MESSAGES_DB = Path.home() / "Library/Messages/chat.db"
 AGENT_DIR = Path.home() / "Code" / "Agent"
@@ -1177,6 +1184,13 @@ Respond naturally as if texting. Keep it brief unless detail is needed. Use acti
             logger.warning("CRITICAL: Context window nearly full! Compaction needed.")
         elif status["warning"]:
             logger.warning(f"Context at {status['usage_pct']}% - approaching limit")
+
+        # Memory flush before compaction if approaching limit
+        if MEMORY_FLUSH_AVAILABLE and should_flush(token_count):
+            logger.info("Triggering memory flush before compaction...")
+            flush_result = run_memory_flush(history_section)
+            if flush_result:
+                mark_flushed(token_count)
 
     try:
         result = subprocess.run(
