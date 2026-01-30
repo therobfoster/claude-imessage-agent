@@ -192,6 +192,24 @@ def release_lock():
         pass
 
 
+def restart_self():
+    """
+    Restart the agent by replacing the current process with a fresh instance.
+    Uses os.execv which replaces the process in-place (same PID, fresh code).
+    """
+    logger.info("Restarting agent via execv...")
+
+    # Release the PID lock so the new process can acquire it
+    release_lock()
+
+    # Flush any pending logs
+    logging.shutdown()
+
+    # Replace this process with a new instance
+    # execv never returns - it replaces the current process entirely
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
 # ============ Directory Setup ============
 
 def ensure_directories():
@@ -561,9 +579,20 @@ After making changes, summarize what you modified."""
         if output:
             if len(output) > 500:
                 output = output[:500] + "...\n\n(output truncated)"
-            return f"🔧 Self-modification complete!\n\n{output}\n\n⚠️ Restart me to apply changes: reply 'restart agent'"
+            message = f"🔧 Self-modification complete!\n\n{output}\n\n🔄 Restarting to apply changes..."
         else:
-            return "🔧 Self-modification completed (no output). Restart me to apply changes."
+            message = "🔧 Self-modification completed. 🔄 Restarting to apply changes..."
+
+        # Send message before restart
+        if sender:
+            send_imessage(sender, message)
+
+        # Auto-restart to apply code changes
+        logger.info("Auto-restarting after self-modification")
+        restart_self()
+
+        # restart_self() never returns, but just in case:
+        return message
 
     except subprocess.TimeoutExpired:
         return "⏰ Self-modification timed out after 5 minutes"
@@ -1526,9 +1555,8 @@ def handle_special_command(command, sender):
     if command == "restart":
         send_imessage(sender, "🔄 Restarting... I'll be back in a moment!")
         logger.info("Restart requested via iMessage")
-        # Touch a file to trigger fswatch restart, or just exit
-        import sys
-        sys.exit(0)  # Exit cleanly, LaunchAgent or watch.sh will restart us
+        # Restart in-place using execv (replaces process with fresh instance)
+        restart_self()
 
     elif command == "status":
         pending = load_pending_actions()
