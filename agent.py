@@ -1696,5 +1696,99 @@ def run_agent():
             time.sleep(POLL_INTERVAL)
 
 
+def print_memory_stats():
+    """Print memory system statistics."""
+    print("\n=== Memory System Status ===\n")
+
+    # Token counter
+    if TOKEN_COUNTER_AVAILABLE:
+        print("Token Counter: Available")
+    else:
+        print("Token Counter: Not available")
+
+    # Memory manager
+    if MEMORY_MANAGER_AVAILABLE:
+        try:
+            manager = get_manager()
+            stats = manager.get_stats()
+            print(f"Memory Manager: Available")
+            print(f"  - Documents indexed: {stats['total_documents']}")
+            print(f"  - Collection: {stats['collection_name']}")
+            print(f"  - Storage: {stats['chroma_path']}")
+        except Exception as e:
+            print(f"Memory Manager: Error - {e}")
+    else:
+        print("Memory Manager: Not available")
+
+    # Memory flush
+    if MEMORY_FLUSH_AVAILABLE:
+        from memory_flush import get_flush_stats
+        stats = get_flush_stats()
+        print(f"Memory Flush: Available")
+        print(f"  - Threshold: {stats['flush_threshold']:,} tokens")
+        print(f"  - MEMORY.md exists: {stats['memory_exists']}")
+    else:
+        print("Memory Flush: Not available")
+
+    # Compaction
+    if COMPACTION_AVAILABLE:
+        from compaction import load_conversations, HARD_LIMIT
+        messages = load_conversations()
+        print(f"Compaction: Available")
+        print(f"  - Threshold: {HARD_LIMIT:,} tokens")
+        print(f"  - Messages in log: {len(messages)}")
+    else:
+        print("Compaction: Not available")
+
+    print()
+
+
+def reindex_memory():
+    """Rebuild the vector store from scratch."""
+    if not MEMORY_MANAGER_AVAILABLE:
+        print("Memory manager not available")
+        return
+
+    print("Rebuilding vector store...")
+
+    # Clear hash cache to force re-indexing
+    hash_cache_file = MEMORY_DIR / ".content_hashes.json"
+    if hash_cache_file.exists():
+        hash_cache_file.unlink()
+        print("Cleared hash cache")
+
+    # Clear chroma directory
+    chroma_dir = MEMORY_DIR / "chroma"
+    if chroma_dir.exists():
+        import shutil
+        shutil.rmtree(chroma_dir)
+        print("Cleared vector store")
+
+    # Re-initialize with backfill
+    manager = init_memory(backfill=True)
+    stats = manager.get_stats()
+    print(f"Re-indexed {stats['total_documents']} documents")
+
+
 if __name__ == "__main__":
-    run_agent()
+    import sys
+
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--stats":
+            print_memory_stats()
+        elif sys.argv[1] == "--reindex":
+            reindex_memory()
+        elif sys.argv[1] == "--help":
+            print("Usage: python agent.py [OPTIONS]")
+            print("")
+            print("Options:")
+            print("  --stats     Show memory system statistics")
+            print("  --reindex   Rebuild vector store from scratch")
+            print("  --help      Show this help message")
+            print("")
+            print("Without options, runs the agent main loop.")
+        else:
+            print(f"Unknown option: {sys.argv[1]}")
+            print("Use --help for usage information")
+    else:
+        run_agent()
