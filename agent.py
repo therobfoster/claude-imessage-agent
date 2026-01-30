@@ -40,6 +40,13 @@ try:
 except ImportError:
     IMAGE_PIPELINE_AVAILABLE = False
 
+# Token counting for context management
+try:
+    from token_counter import estimate_tokens, check_limit, format_token_status
+    TOKEN_COUNTER_AVAILABLE = True
+except ImportError:
+    TOKEN_COUNTER_AVAILABLE = False
+
 # Configuration
 MESSAGES_DB = Path.home() / "Library/Messages/chat.db"
 AGENT_DIR = Path.home() / "Code" / "Agent"
@@ -1134,6 +1141,17 @@ def invoke_claude(user_message, sender):
 {user_message}
 
 Respond naturally as if texting. Keep it brief unless detail is needed. Use action tags when appropriate."""
+
+    # Token counting for context monitoring
+    if TOKEN_COUNTER_AVAILABLE:
+        token_count = estimate_tokens(full_prompt)
+        status = check_limit(token_count)
+        logger.info(format_token_status(token_count))
+
+        if status["critical"]:
+            logger.warning("CRITICAL: Context window nearly full! Compaction needed.")
+        elif status["warning"]:
+            logger.warning(f"Context at {status['usage_pct']}% - approaching limit")
 
     try:
         result = subprocess.run(
