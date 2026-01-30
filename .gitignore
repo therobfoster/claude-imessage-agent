@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+.env
+
+# Agent runtime state
+.agent_state.json
+.agent.pid
+.pending_actions.json
+
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Vector database (large binary files)
+memory/vectors.db
+memory/chroma/
+
+# Secrets
+config/secrets.json
+*.key
+*credentials*
+*secret*
+!*example*
+
+# Workspace uploads
+workspace/
