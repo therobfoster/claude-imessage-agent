@@ -97,15 +97,31 @@ DANGEROUS_PATTERNS = [
     r"wget.*\|.*sh", r"eval", r"exec"
 ]
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(LOGS_DIR / "agent.log"),
-        logging.StreamHandler()
-    ]
+# Set up logging with rotation
+from logging.handlers import RotatingFileHandler
+import os
+
+LOG_LEVEL = logging.DEBUG if os.environ.get("AGENT_DEBUG") else logging.INFO
+
+# Ensure logs directory exists before setting up handlers
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+# File handler with rotation (10MB max, keep 5 backups)
+file_handler = RotatingFileHandler(
+    LOGS_DIR / "agent.log",
+    maxBytes=10*1024*1024,  # 10MB
+    backupCount=5
 )
+file_handler.setLevel(LOG_LEVEL)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(LOG_LEVEL)
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+# Configure root logger
+logging.basicConfig(level=LOG_LEVEL, handlers=[file_handler, console_handler])
 logger = logging.getLogger(__name__)
 
 
