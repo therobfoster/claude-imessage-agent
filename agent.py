@@ -10,6 +10,7 @@ import subprocess
 import json
 import time
 import os
+import sys
 import logging
 import re
 import shlex
@@ -123,6 +124,46 @@ console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(
 # Configure root logger
 logging.basicConfig(level=LOG_LEVEL, handlers=[file_handler, console_handler])
 logger = logging.getLogger(__name__)
+
+
+# ============ Single Instance Lock ============
+
+PID_FILE = AGENT_DIR / ".agent.pid"
+
+def acquire_lock():
+    """
+    Acquire a lock to ensure only one agent instance runs.
+    Returns True if lock acquired, False if another instance is running.
+    """
+    # Check if PID file exists
+    if PID_FILE.exists():
+        try:
+            old_pid = int(PID_FILE.read_text().strip())
+            # Check if that process is still running
+            os.kill(old_pid, 0)  # Signal 0 = check if process exists
+            # Process exists - another instance is running
+            return False
+        except (ProcessLookupError, ValueError):
+            # Process doesn't exist or invalid PID - stale lock file
+            pass
+        except PermissionError:
+            # Process exists but we can't signal it - assume it's running
+            return False
+
+    # Write our PID
+    PID_FILE.write_text(str(os.getpid()))
+    return True
+
+
+def release_lock():
+    """Release the lock on exit."""
+    try:
+        if PID_FILE.exists():
+            current_pid = int(PID_FILE.read_text().strip())
+            if current_pid == os.getpid():
+                PID_FILE.unlink()
+    except Exception:
+        pass
 
 
 # ============ Directory Setup ============
@@ -1626,6 +1667,18 @@ def process_message(rowid, text, date, sender, has_attachments=False):
 def run_agent():
     """Main agent loop."""
     ensure_directories()
+
+    # Ensure only one instance runs
+    if not acquire_lock():
+        logger.error("Another agent instance is already running! Exiting.")
+        print("ERROR: Another agent instance is already running!")
+        print(f"Check PID file: {PID_FILE}")
+        sys.exit(1)
+
+    # Clean up lock on exit
+    import atexit
+    atexit.register(release_lock)
+
     state = load_state()
 
     logger.info("=" * 50)
@@ -1739,8 +1792,6 @@ def reindex_memory():
 
 
 if __name__ == "__main__":
-    import sys
-
     if len(sys.argv) > 1:
         if sys.argv[1] == "--stats":
             print_memory_stats()
