@@ -61,6 +61,13 @@ try:
 except ImportError:
     MEMORY_FLUSH_AVAILABLE = False
 
+# Auto-compaction for context management
+try:
+    from compaction import check_and_compact, should_compact
+    COMPACTION_AVAILABLE = True
+except ImportError:
+    COMPACTION_AVAILABLE = False
+
 # Configuration
 MESSAGES_DB = Path.home() / "Library/Messages/chat.db"
 AGENT_DIR = Path.home() / "Code" / "Agent"
@@ -1191,6 +1198,13 @@ Respond naturally as if texting. Keep it brief unless detail is needed. Use acti
             flush_result = run_memory_flush(history_section)
             if flush_result:
                 mark_flushed(token_count)
+
+        # Auto-compaction if at critical threshold
+        if COMPACTION_AVAILABLE and status["critical"]:
+            logger.info("Triggering auto-compaction...")
+            compaction_result = check_and_compact()
+            if compaction_result and compaction_result.success:
+                logger.info(f"Compacted {compaction_result.messages_compacted} messages")
 
     try:
         result = subprocess.run(
