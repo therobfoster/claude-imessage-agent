@@ -80,7 +80,17 @@ The agent needs to read `~/Library/Messages/chat.db`:
 3. Add **Terminal** (or your terminal app: iTerm, VS Code, etc.)
 4. Restart your terminal
 
-### 5. Start the agent
+### 5. Sign into iMessage
+
+The agent sends replies through the macOS **Messages** app using AppleScript. It automatically uses whatever iCloud account is signed in - no additional configuration needed.
+
+1. Open the **Messages** app
+2. Sign in with your Apple ID (if not already signed in)
+3. Verify you can send/receive iMessages manually
+
+If Messages works normally, the agent will use the same account to send replies.
+
+### 6. Start the agent
 
 ```bash
 python3 agent.py

@@ -241,26 +241,32 @@ def print_next_steps():
     print_header("Setup Complete!")
 
     print("""
-  To start the agent:
+  BEFORE STARTING - Check these two things:
+
+  1. Full Disk Access (to read iMessages)
+     Go to: System Preferences > Privacy & Security > Full Disk Access
+     Add: Terminal (or your terminal app)
+
+  2. Messages app signed in with your Apple ID
+     The agent sends replies through the Messages app using AppleScript.
+     It automatically uses whatever iCloud account is signed in.
+     If you can send iMessages manually, the agent will work.
+
+  TO START THE AGENT:
     python3 agent.py
 
-  To run in debug mode (verbose logging):
-    AGENT_DEBUG=1 python3 agent.py
+  OTHER COMMANDS:
+    AGENT_DEBUG=1 python3 agent.py   # Debug mode (verbose logging)
+    python3 agent.py --stats         # Memory system status
+    python3 agent.py --reindex       # Rebuild vector store
 
-  To check memory system status:
-    python3 agent.py --stats
-
-  Logs are saved to:
+  LOGS:
     logs/agent.log
 
-  Configuration files:
+  CONFIG FILES:
     config/user_config.json  - Your settings
     config/secrets.json      - API keys (keep private!)
     config/FEATURES.md       - Agent capabilities
-
-  NOTE: The agent requires Full Disk Access to read iMessages.
-  Go to: System Preferences > Privacy & Security > Full Disk Access
-  Add: Terminal (or your terminal app)
 """)
 
 def main():
